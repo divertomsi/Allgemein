@@ -1,8 +1,8 @@
 $ErrorActionPreference = 'silentlycontinue'
 
-$eventlogname = $env:eventlogname
-$eventsource = $env:eventsource
-$ipadresse = $env:IP
+$eventlogname = "divertoTest"
+$eventsource = "NAScheck"
+$ipadresse = "10.1.1.80"
 $errorcount = 0
 $SNMP = new-object -ComObject olePrn.OleSNMP
 $snmp.open($ipadresse, "public", 5, 3000)
@@ -30,7 +30,7 @@ if (! $eventsourcecheck)
 
 
 ################## Convert TB to GB (String to double) if check returns TB value #####################
-$arg2OID = $env:OID
+$arg2OID = ""
 
 $nasvolumename = $snmp.Get(".1.3.6.1.2.1.25.2.3.1.3.$arg2OID")
 $nasdisktotal = $snmp.Get(".1.3.6.1.2.1.25.2.3.1.5.$arg2OID")
@@ -323,10 +323,9 @@ while ($raidstatus -ne '')
 
 ##################Show Volume OIDs if not set as Argument#####################
 
-if ($nasdisktotalGB -eq 0)
+if ($arg2OID -eq "")
 {
-    
-    Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID 4000 -Message "$ipadresse - OIDs aller Volumes. OID des zu prüfenden Volume als Argument angeben."
+    $eventlogoidcheck = "$ipadresse - OIDs aller Volumes. OID des zu prüfenden Volume als Argument angeben."
     
     $nasvolumecheckoid = 1
 
@@ -340,7 +339,8 @@ if ($nasdisktotalGB -eq 0)
 
         if ($nasdisktotalcheck -ne '')
         {
-            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID 4000 -Message "$ipadresse - Volume Name:"$nasdiskDescrcheck "- Total Speicherplatz:"$nasdisktotalcheckGB "GB" "- OID:"$nasvolumecheckoid
+            $eventlogoidcheck = "$eventlogoidcheck" + "Volume Name: $nasdiskDescrcheck - Total Speicherplatz: $nasdisktotalcheckGB GB - OID: $nasvolumecheckoid
+"
         }
         else
         {
@@ -348,7 +348,8 @@ if ($nasdisktotalGB -eq 0)
         $nasdisktotalcheck = ''
         $nasvolumecheckoid++
     }
-}
-else
-{
+
+    Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID 4000 -Message "$eventlogoidcheck"
+    
+
 }
