@@ -1,3 +1,4 @@
-write-host "Hallo Welt"
+$eventlogname = "divertoEvents"
+$eventsource = "divNAS"
 
-$a = 15
+Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID 4005 -Message "Status = Failed(2):One of CPU fan stopped."
