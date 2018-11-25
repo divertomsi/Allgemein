@@ -18,7 +18,7 @@ if ($env:eventsource -eq $null)
 $ipadress = $env:IP
 if ($env:IP -eq $null)
 {
-    # IP Adresse des Synology NAS angeben
+    # IP Adresse des Synology NAS angeben mit ""
     $ipadress = "10.1.1.80"
 }
 
@@ -48,6 +48,13 @@ $nasserialnumber = $snmp.Get(".1.3.6.1.4.1.6574.1.5.2.0")
 $nasdsmversion = $snmp.Get(".1.3.6.1.4.1.6574.1.5.3.0")
 $nasuptime = $snmp.Get(".1.3.6.1.2.1.25.1.1.0")
 $nasuptime = [Math]::Round($nasuptime / 8640000 , 2)
+
+$eventloginfo = $eventloginfo + "NAS Modell: $nasmodelName" + -join "`n"
+$eventloginfo = $eventloginfo + "NAS IP: $ipadress" + -join "`n"
+$eventloginfo = $eventloginfo + "NAS S/N: $nasserialnumber" + -join "`n"
+$eventloginfo = $eventloginfo + "DSM Version: $nasdsmversion" + -join "`n"
+$eventloginfo = $eventloginfo + "Laufzeit: $nasuptime" + -join "`n"
+$eventloginfo = $eventloginfo + -join "`n"
 
 ################## Erstellung Eventlog und Event Source #####################
 # Wenn das Eventlog nicht vorhanden ist, erstelle dieses
@@ -80,11 +87,11 @@ if ($volumeOIDtocheck -ne "" -or $null)
     {
         if ($nasdiskfreeGB -gt 1024)
         {
-            $eventloginfo = $eventloginfo + "OK - Volume (Name: $nasvolumename) hat noch $nasdiskfreeTB TB von $nasdisktotalTB TB verfuegbar" + -join "`n"
+            $eventloginfo = $eventloginfo + "OK - Volume (Name: $nasvolumename) hat noch $nasdiskfreeTB TB von $nasdisktotalTB TB verfuegbar. Definierter Schwellenwert: $minfreeGB GB" + -join "`n"
         }
         else
         {
-            $eventloginfo = $eventloginfo + "OK - Volume (Name: $nasvolumename) hat noch $nasdiskfreeGB GB von $nasdisktotalTB TB verfuegbar" + -join "`n"
+            $eventloginfo = $eventloginfo + "OK - Volume (Name: $nasvolumename) hat noch $nasdiskfreeGB GB von $nasdisktotalTB TB verfuegbar. Definierter Schwellenwert: $minfreeGB GB" + -join "`n"
         }
         
     }
