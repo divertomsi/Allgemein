@@ -4,33 +4,37 @@ $ErrorActionPreference = 'silentlycontinue'
 $eventlogname = $env:eventlogname
 if ($env:eventlogname -eq $null)
 {
-    $eventlogname = "divertoTest"
+    # Name des Eventlogs
+    $eventlogname = "EventTesting"
 }
 
 $eventsource = $env:eventsource
 if ($env:eventsource -eq $null)
 {
-    $eventsource = "NAScheck"
+    # Name der Eventlog Quelle
+    $eventsource = "NAS Monitoring Synology"
 }
 
 $ipadress = $env:IP
 if ($env:IP -eq $null)
 {
+    # IP Adresse des Synology NAS angeben
     $ipadress = "10.1.1.80"
 }
 
 $volumeOIDtocheck = $env:OID
 if ($env:OID -eq $null)
 {
-    $volumeOIDtocheck = 51
+    # Für Auflistung aller Volume OIDs auf "" setzten ($volumeOIDtocheck = "")
+    $volumeOIDtocheck = ""
 }
 
 $minfreeGB = $env:minfree
 if ($env:minfree -eq $null)
 {
+    # Schwellenwert für freien Speicherplatz in GB
     $minfreeGB = 500
 }
-
 
 ################## Globale Variablen #####################
 $eventIDinfo = 4000
@@ -46,22 +50,21 @@ $nasuptime = $snmp.Get(".1.3.6.1.2.1.25.1.1.0")
 $nasuptime = [Math]::Round($nasuptime / 8640000 , 2)
 
 ################## Erstellung Eventlog und Event Source #####################
-#Wenn das Eventlog nicht vorhanden ist, erstelle dieses
+# Wenn das Eventlog nicht vorhanden ist, erstelle dieses
 $eventlognamecheck = Get-EventLog -list | Where-Object {$_.logdisplayname -eq $eventlogname}
 if (! $eventlognamecheck)
 {
     New-EventLog -LogName $eventlogname -source $eventsource 
 }
 
-#Wenn die Eventsource nicht vorhanden ist, erstelle diese
+# Wenn die Eventsource nicht vorhanden ist, erstelle diese
 $eventsourcecheck = [System.Diagnostics.EventLog]::SourceExists($eventsource) -eq $true
 if (! $eventsourcecheck)
 {
     new-eventlog -source $eventsource -logname $eventlogname
 }
 
-
-################## Convert TB to GB (String to double) if check returns TB value #####################
+################## Check free disk space and convert TB to GB (String to double) if check returns TB value #####################
 $nasvolumename = $snmp.Get(".1.3.6.1.2.1.25.2.3.1.3.$volumeOIDtocheck")
 $nasdisktotal = $snmp.Get(".1.3.6.1.2.1.25.2.3.1.5.$volumeOIDtocheck")
 $nasdiskused = $snmp.Get(".1.3.6.1.2.1.25.2.3.1.6.$volumeOIDtocheck")
@@ -201,7 +204,7 @@ while ($nascpufanstatus -ne '')
     }
 }
 
-##################Check Disk Temperatur#####################
+################## Check Disk Temperatur #####################
 $hddtemp = 1
 $hddtempoid = 0
 while ($hddtemp -ne '')
@@ -228,7 +231,7 @@ while ($hddtemp -ne '')
     }
 }
 
-##################Check Disk State (SMART Status)#####################
+################## Check Disk State (SMART Status) #####################
 $hddstatus = 1
 $hddstatusoid = 0
 while ($hddstatus -ne '')
@@ -379,7 +382,7 @@ if ($volumeOIDtocheck -eq "" -or $null)
     Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$OIDcheckoutput"
 }
 
-################## Write Info with System normal state to eventlog #####################
+################## Write Info with System state to eventlog #####################
 $eventloginfo = "$eventloginfo" + -join "`n" + "Anzahl gefundene Fehler: $errorcount" + -join "`n"
 Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Information -EventID $eventIDinfo -Message "$eventloginfo"
 
