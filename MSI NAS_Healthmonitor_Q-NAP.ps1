@@ -89,7 +89,7 @@ while ($hddvolumecount -le $volumenumber)
     $minfreeGBcurrentvolume = $minfreeGB[$hddvolumecount - 1]
     if ($intNasFreeDisk -ge $minfreeGB[$hddvolumecount - 1])
     {
-        $eventloginfo = $eventloginfo + "OK - Volume$hddvolumecount hat noch $nasfreedisk von $nasdisksizetotal verfügbar. Definierter Schwellenwert: $minfreeGBcurrentvolume GB"
+        $eventloginfo = $eventloginfo + "OK - Volume$hddvolumecount hat noch $nasfreedisk von $nasdisksizetotal verfügbar. Definierter Schwellenwert: $minfreeGBcurrentvolume GB" + -join "`n"
     }
     else
     {
@@ -103,7 +103,7 @@ while ($hddvolumecount -le $volumenumber)
 $nasTempStatus = $snmp.Get(".1.3.6.1.4.1.24681.1.2.6.0")
 if (($nasTempStatus -le 59) -and ($nasTempStatus -gt 0))
 {
-    $eventloginfo = $eventloginfo + "OK - Systemtemperatur = $nasTempStatus Grad"
+    $eventloginfo = $eventloginfo + "OK - Systemtemperatur = $nasTempStatus Grad" + -join "`n"
 }
 elseif ($nasTempStatus -ge 60)
 {
@@ -130,7 +130,7 @@ while ($hddtempcount -le $hdnumber)
     }
     else
     {
-        $eventloginfo = $eventloginfo + "OK - Die HDD$hddtempcount hat $nasHDtemp Grad Temperatur"
+        $eventloginfo = $eventloginfo + "OK - Die HDD$hddtempcount hat $nasHDtemp Grad Temperatur" + -join "`n"
     }
     $hddtempcount++
 }
@@ -143,7 +143,7 @@ while ($hddstatuscount -le $hdnumber)
     $hddmodel = $snmp.Get(".1.3.6.1.4.1.24681.1.2.11.1.5.$hddtempcount")
     if ($nasHDDStatus -eq "GOOD")
     {
-        $eventloginfo = $eventloginfo + "OK - HDD$hddstatuscount Status = OK"
+        $eventloginfo = $eventloginfo + "OK - HDD$hddstatuscount Status = OK" + -join "`n"
     }
     else
     {
