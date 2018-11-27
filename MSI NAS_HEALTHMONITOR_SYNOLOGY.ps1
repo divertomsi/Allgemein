@@ -47,13 +47,13 @@ $nasmodelName = $snmp.Get(".1.3.6.1.4.1.6574.1.5.1.0")
 $nasserialnumber = $snmp.Get(".1.3.6.1.4.1.6574.1.5.2.0")
 $nasdsmversion = $snmp.Get(".1.3.6.1.4.1.6574.1.5.3.0")
 $nasuptime = $snmp.Get(".1.3.6.1.2.1.25.1.1.0")
-$nasuptime = [Math]::Round($nasuptime / 8640000 , 2)
+$nasuptime = [Math]::Round($nasuptime / 8640000 , 2) #Ausgabe in Tagen
 
 $eventloginfo = $eventloginfo + "NAS Modell: $nasmodelName" + -join "`n"
 $eventloginfo = $eventloginfo + "NAS IP: $ipadress" + -join "`n"
 $eventloginfo = $eventloginfo + "NAS S/N: $nasserialnumber" + -join "`n"
 $eventloginfo = $eventloginfo + "DSM Version: $nasdsmversion" + -join "`n"
-$eventloginfo = $eventloginfo + "Laufzeit: $nasuptime" + -join "`n"
+$eventloginfo = $eventloginfo + "Laufzeit in Tagen: $nasuptime" + -join "`n"
 $eventloginfo = $eventloginfo + -join "`n"
 
 ################## Erstellung Eventlog und Event Source #####################
@@ -327,41 +327,46 @@ while ($raidstatus -ne '')
 
 
 ################## Check if upgrade is available #####################
-<###
-	$upgradestatus = ''
-	$upgradestatus = $snmp.Get(".1.3.6.1.4.1.6574.1.5.4.0")
+$upgradestatus = ''
+$upgradestatus = $snmp.Get(".1.3.6.1.4.1.6574.1.5.4.0")
 
-	if ($upgradestatus -ne ''){
-		if($upgradestatus -eq 2){
-				$eventloginfo = $eventloginfo + "DSM Upgrade Status = You've already the latest DSM version running." + -join "`n"
-		}
-		else{
-			if($upgradestatus -eq 1){
-				Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Available: There is a new version ready for download."
-				#$errorcount++
-			}
-			elseif($upgradestatus -eq 3){
-				Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Connecting: Checking for the latest DSM."
-				#$errorcount++
-			}
-			elseif($upgradestatus -eq 4){
-				Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Disconnected: Failed to connect to server."
-				#$errorcount++
-			}
-			elseif($upgradestatus -eq 5){
-				Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Other: If DSM is upgrading or downloading."
-				#$errorcount++
-			}
-			else{
-				Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = $upgradestatus"
-				#$errorcount++
-			}
-			else{
-			}
-		}
-	}
-
-###>
+if ($upgradestatus -ne '')
+{
+    if ($upgradestatus -eq 2)
+    {
+        $eventloginfo = $eventloginfo + "DSM Upgrade Status = You've already the latest DSM version running." + -join "`n"
+    }
+    else
+    {
+        if ($upgradestatus -eq 1)
+        {
+            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Available: There is a new version ready for download."
+            $errorcount++
+        }
+        elseif ($upgradestatus -eq 3)
+        {
+            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Connecting: Checking for the latest DSM."
+            $errorcount++
+        }
+        elseif ($upgradestatus -eq 4)
+        {
+            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Disconnected: Failed to connect to server."
+            $errorcount++
+        }
+        elseif ($upgradestatus -eq 5)
+        {
+            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Other: If DSM is upgrading or downloading."
+            $errorcount++
+        }
+        else
+        {
+            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = $upgradestatus"
+            $errorcount++
+        }
+        else {
+        }
+    }
+}
 
 ################## Show Volume OIDs if not set as Argument #####################
 if ($volumeOIDtocheck -eq "" -or $null)

@@ -36,7 +36,7 @@ $eventIDwarnung = 4001
 $eventloginfo = ""
 $errorcount = 0
 $SNMP = new-object -ComObject olePrn.OleSNMP
-$snmp.open($ipadresse, "public", 5, 3000)
+$snmp.open($ipadress, "public", 5, 3000)
 $hdnumber = $snmp.Get(".1.3.6.1.4.1.24681.1.3.10.0")
 $volumenumber = $snmp.Get(".1.3.6.1.4.1.24681.1.2.16.0")
 $nasmodelName = $snmp.Get(".1.3.6.1.4.1.24681.1.2.12.0")
@@ -44,6 +44,14 @@ $nashostname = $snmp.Get(".1.3.6.1.4.1.24681.1.2.13.0")
 $nashostname = $nashostname.Substring(0, $nashostname.Length - 1) #Zeilenumbruch vom ausgelesenen Hostnamen entfernen
 $nasuptime = $snmp.Get(".1.3.6.1.2.1.25.1.1.0")
 $nasuptime = [Math]::Round($nasuptime / 8640000 , 2)
+
+$eventloginfo = $eventloginfo + "NAS Modell: $nasmodelName" + -join "`n"
+$eventloginfo = $eventloginfo + "Anzahl Festplatten: $hdnumber" + -join "`n"
+$eventloginfo = $eventloginfo + "Anzahl Volumes: $volumenumber" + -join "`n"
+$eventloginfo = $eventloginfo + "Hostname: $nashostname" + -join "`n"
+$eventloginfo = $eventloginfo + "NAS IP: $ipadress" + -join "`n"
+$eventloginfo = $eventloginfo + "Laufzeit in Tagen: $nasuptime" + -join "`n"
+$eventloginfo = $eventloginfo + -join "`n"
 
 ################## Erstellung Eventlog und Event Source #####################
 # Wenn das Eventlog nicht vorhanden ist, erstelle dieses
@@ -61,9 +69,7 @@ if (! $eventsourcecheck)
 }
 
 ################## Convert TB to GB (String to double) if check returns TB value #####################
-
 $hddvolumecount = 1
-
 while ($hddvolumecount -le $volumenumber)
 {
     $nasdisksizetotal = $snmp.Get(".1.3.6.1.4.1.24681.1.2.17.1.4.$hddvolumecount")
@@ -83,7 +89,7 @@ while ($hddvolumecount -le $volumenumber)
     $minfreeGBcurrentvolume = $minfreeGB[$hddvolumecount - 1]
     if ($intNasFreeDisk -ge $minfreeGB[$hddvolumecount - 1])
     {
-        write-host "OK - Volume$hddvolumecount hat noch $nasfreedisk von $nasdisksizetotal verfügbar. Definierter Schwellenwert: $minfreeGBcurrentvolume GB"
+        $eventloginfo = $eventloginfo + "OK - Volume$hddvolumecount hat noch $nasfreedisk von $nasdisksizetotal verfügbar. Definierter Schwellenwert: $minfreeGBcurrentvolume GB"
     }
     else
     {
@@ -92,30 +98,26 @@ while ($hddvolumecount -le $volumenumber)
              
     }
     $hddvolumecount++
-
 }
 ################## Check System Temperatur #####################
-
 $nasTempStatus = $snmp.Get(".1.3.6.1.4.1.24681.1.2.6.0")
 if (($nasTempStatus -le 59) -and ($nasTempStatus -gt 0))
 {
-    Write-Host "OK - Systemtemperatur = $nasTempStatus Grad"
+    $eventloginfo = $eventloginfo + "OK - Systemtemperatur = $nasTempStatus Grad"
 }
 elseif ($nasTempStatus -ge 60)
 {
     Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$nashostname : - Systemtemperatur = $nasTempStatus Grad"
- 	
+    $errorcount++
 }
 else
 {
     Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Information -EventID $eventIDwarnung -Message "Systemtemperatur unbekannt."
- 
+    $errorcount++
 }
 
-##################Check Disk Temperatur#####################
-
+################## Check Disk Temperatur #####################
 $hddtempcount = 1
-
 while ($hddtempcount -le $hdnumber)
 {
     $nasHDtemp = $snmp.Get(".1.3.6.1.4.1.24681.1.2.11.1.3.$hddtempcount")
@@ -124,34 +126,34 @@ while ($hddtempcount -le $hdnumber)
     if ($nasHDtemp -ge 60)
     {
         Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$nashostname : - Die HDD$hddtempcount hat $nasHDtemp Grad Temperatur - HDD Modell: $hddmodel"
-       
+        $errorcount++
     }
     else
     {
-        write-host "OK - Die HDD$hddtempcount hat $nasHDtemp Grad Temperatur"
-
+        $eventloginfo = $eventloginfo + "OK - Die HDD$hddtempcount hat $nasHDtemp Grad Temperatur"
     }
     $hddtempcount++
 }
 
-##################Check Disk State (SMART Status)#####################
-
+################## Check Disk State (SMART Status) #####################
 $hddstatuscount = 1
-
 while ($hddstatuscount -le $hdnumber)
 {
     $nasHDDStatus = $snmp.Get(".1.3.6.1.4.1.24681.1.2.11.1.7.$hddstatuscount")
     $hddmodel = $snmp.Get(".1.3.6.1.4.1.24681.1.2.11.1.5.$hddtempcount")
     if ($nasHDDStatus -eq "GOOD")
     {
-        write-host "OK - HDD$hddstatuscount Status = OK"
+        $eventloginfo = $eventloginfo + "OK - HDD$hddstatuscount Status = OK"
     }
     else
     {
         Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$nashostname : - HDD$hddstatuscount Status = $nasHDDStatus - HDD Modell: $hddmodel. Das NAS läuft seit "$nasuptime "Tag(en)"
-        
+        $errorcount++
     }
     $hddstatuscount++
 }
 
-##################exit#####################
+################## Write Info with System state to eventlog #####################
+$eventloginfo = "$eventloginfo" + -join "`n" + "Anzahl gefundene Fehler: $errorcount" + -join "`n"
+Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Information -EventID $eventIDinfo -Message "$eventloginfo"
+
