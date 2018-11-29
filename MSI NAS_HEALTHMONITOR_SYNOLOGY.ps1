@@ -16,21 +16,20 @@ $ErrorActionPreference = 'silentlycontinue'
 
 ################## RMM Environment und Testlab Variablen #####################
 # Eventlog Name welche auf dem RMM Kunden gesetzt wurde
-$eventlogname = "EventTesting"
-<#
 $eventlogname = $env:mspEventLog
 if ($env:mspEventLog -eq $null)
 {
     # Name des Eventlogs
     $eventlogname = "EventTesting"
+    write-host "EventLogName environment Variable nicht erkannt. Testumgebungs Variable gesetzt. Wert: $eventlogname"
 }
-#>
 
 $eventsource = $env:eventsource
 if ($env:eventsource -eq $null)
 {
     # Name der Eventlog Quelle
-    $eventsource = "NAS Monitoring Synology"
+    $eventsource = "NAS Monitoring testing Synology"
+    write-host "EventSource environment Variable nicht erkannt. Testumgebungs Variable gesetzt. Wert: $eventsource"
 }
 
 $ipadress = $env:IP
@@ -38,13 +37,16 @@ if ($env:IP -eq $null)
 {
     # IP Adresse des Synology NAS angeben mit ""
     $ipadress = "10.1.1.80"
+    write-host "IP Adresse environment Variable nicht erkannt. Testumgebungs Variable gesetzt. Wert: $ipadress"
 }
 
 $volumeOIDtocheck = $env:OID
 if ($env:OID -eq $null)
 {
     # Für Auflistung aller Volume OIDs auf "" setzten ($volumeOIDtocheck = "")
+    # Nach der ersten Prüfung OID des zu prüfenden Volumes angeben
     $volumeOIDtocheck = ""
+    write-host "OID environment Variable nicht erkannt. Testumgebungs Variable gesetzt. Wert: $volumeOIDtocheck"
 }
 
 $minfreeGB = $env:minfree
@@ -52,6 +54,7 @@ if ($env:minfree -eq $null)
 {
     # Schwellenwert für freien Speicherplatz in GB
     $minfreeGB = 500
+    write-host "Speicherplatz environment Variable nicht erkannt. Variable für Testumgebung wurde gesetzt. Wert: $minfreeGB"
 }
 
 ################## Globale Variablen #####################
@@ -75,14 +78,14 @@ $eventloginfo = $eventloginfo + "Laufzeit in Tagen: $nasuptime" + -join "`n"
 $eventloginfo = $eventloginfo + -join "`n"
 
 ################## Erstellung Eventlog und Event Source #####################
-# Wenn das Eventlog nicht vorhanden ist, erstelle dieses
+# Wenn Eventlog nicht vorhanden ist, erstellen
 $eventlognamecheck = Get-EventLog -list | Where-Object {$_.logdisplayname -eq $eventlogname}
 if (! $eventlognamecheck)
 {
     New-EventLog -LogName $eventlogname -source $eventsource 
 }
 
-# Wenn die Eventsource nicht vorhanden ist, erstelle diese
+# Wenn Eventsource nicht vorhanden, erstellen
 $eventsourcecheck = [System.Diagnostics.EventLog]::SourceExists($eventsource) -eq $true
 if (! $eventsourcecheck)
 {
@@ -134,97 +137,71 @@ else
 }
 
 ################## Check System Temperatur #####################
-$nassystemtemp = 1
 $nassystemtempoid = 0
-while ($nassystemtemp -ne '')
+$nassystemtemp = $snmp.Get(".1.3.6.1.4.1.6574.1.2.$nassystemtempoid")
+if ($nassystemtemp -ne $null)
 {
-    $nassystemtemp = ''
-    $nassystemtemp = $snmp.Get(".1.3.6.1.4.1.6574.1.2.$nassystemtempoid")
-    $nassystemtempoid++
-
-    if ($nassystemtemp -ne '')
+    if ($nassystemtemp -le 60)
     {
-        if ($nassystemtemp -le 60)
-        {
-            $eventloginfo = $eventloginfo + "OK - Systemtemperatur = $nassystemtemp Grad" + -join "`n"
-        }
-        elseif ($nassystemtemp -ge 61)
-        {
-            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress Systemtemperatur = $nassystemtemp Grad"
-            $errorcount++
-        }
-        else
-        {
-            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - Systemtemperatur = unbekannt"
-        }
+        $eventloginfo = $eventloginfo + "OK - Systemtemperatur = $nassystemtemp Grad" + -join "`n"
+    }
+    elseif ($nassystemtemp -ge 61)
+    {
+        Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress Systemtemperatur = $nassystemtemp Grad"
+        $errorcount++
     }
     else
     {
+        Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - Systemtemperatur = unbekannt"
     }
 }
 
 ################## Check SystemFan Status #####################
-$nassystemfanstatus = 1
 $nassystemfanoid = 0
-while ($nassystemfanstatus -ne '')
+$nassystemfanstatus = $snmp.Get(".1.3.6.1.4.1.6574.1.4.1.$nassystemfanoid")
+if ($nassystemfanstatus -ne $null)
 {
-    $nassystemfanstatus = ''
-    $nassystemfanstatus = $snmp.Get(".1.3.6.1.4.1.6574.1.4.1.$nassystemfanoid")
-    $nassystemfanoid++
-
-    if ($nassystemfanstatus -ne '')
+    if ($nassystemfanstatus -eq 1)
     {
-        if ($nassystemfanstatus -eq 1)
+        $eventloginfo = $eventloginfo + "OK - SystemFan$nassystemfanoid Status = Normal" + -join "`n"
+    }
+    else
+    {
+        if ($nassystemfanstatus -eq 2)
         {
-            $eventloginfo = $eventloginfo + "OK - SystemFan$nassystemfanoid Status = Normal" + -join "`n"
+            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - SystemFan$nassystemfanoid Status = Failed(2):One of internal fan stopped."
+            $errorcount++
         }
         else
         {
-            if ($hddstatus -eq 2)
-            {
-                Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - SystemFan$nassystemfanoid Status = Failed(2):One of internal fan stopped."
-                $errorcount++
-            }
-            else
-            {
-                Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - SystemFan$nassystemfanoid (SystemFan Status = $nassystemfanstatus)"
-                $errorcount++
-            }
-            else {
-            }
+            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - SystemFan$nassystemfanoid (SystemFan Status = $nassystemfanstatus)"
+            $errorcount++
         }
     }
 }
 
 ################## Check CPUFan Status #####################
-$nascpufanstatus = 1
 $nascpufanoid = 0
-while ($nascpufanstatus -ne '')
+$nascpufanstatus = $snmp.Get(".1.3.6.1.4.1.6574.1.4.2.$nascpufanoid")
+if ($nascpufanstatus -ne $null)
 {
-    $nascpufanstatus = ''
-    $nascpufanstatus = $snmp.Get(".1.3.6.1.4.1.6574.1.4.2.$nascpufanoid")
-    $nascpufanoid++
-
-    if ($nascpufanstatus -ne '')
+    if ($nascpufanstatus -eq 1)
     {
-        if ($nascpufanstatus -eq 1)
+        $eventloginfo = $eventloginfo + "OK - CPUFan$nascpufanoid Status = Normal" + -join "`n"
+    }
+    else
+    {
+        if ($nascpufanstatus -eq 2)
         {
-            $eventloginfo = $eventloginfo + "OK - CPUFan$nascpufanoid Status = Normal" + -join "`n"
+            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - CPUFan$nascpufanoid Status = Failed(2):One of CPU fan stopped."
+            $errorcount++
         }
         else
         {
-            if ($hddstatus -eq 2)
-            {
-                Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - CPUFan$nascpufanoid Status = Failed(2):One of CPU fan stopped."
-                $errorcount++
-            }
-            else
-            {
-                Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - CPUFan$nascpufanoid (SystemFan Status = $nascpufanstatus)"
-                $errorcount++
-            }
-            else {
-            }
+            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - CPUFan$nascpufanoid (SystemFan Status = $nascpufanstatus)"
+            $errorcount++
+        }
+        else {
         }
     }
 }
@@ -345,9 +322,8 @@ while ($raidstatus -ne '')
 
 
 ################## Check if upgrade is available #####################
-# Prüfen ob Meldung zu DSM Upgrade in den letzten x Minuten im Eventlog vorhanden ist
+# Prüfen ob Meldung zu DSM Upgrade in den definierter Zeit im Eventlog vorhanden ist (Zeit in Minuten)
 $dsmupgradecheck = get-eventlog -LogName $eventlogname -InstanceId $eventIDwarnung -After (get-date).addminutes(-10080) -Source $eventsource
-# Wenn nicht im Eventlog vorhanden prüfung durchführen und Info schreiben
 $eventlogdsmupgradegefunden = $false
 foreach ($message in $dsmupgradecheck.Message)
 {
@@ -356,20 +332,21 @@ foreach ($message in $dsmupgradecheck.Message)
         $eventlogdsmupgradegefunden = $true
     }
 }
-if (!$eventlogdsmupgradegefunden)
-{
-    if ($dsmupgradecheck.Message -notlike "*$ipadress - DSM Upgrade Status*")
-    {
-        $upgradestatus = ''
-        $upgradestatus = $snmp.Get(".1.3.6.1.4.1.6574.1.5.4.0")
 
-        if ($upgradestatus -ne '')
+$upgradestatus = ''
+$upgradestatus = $snmp.Get(".1.3.6.1.4.1.6574.1.5.4.0")
+if ($upgradestatus -ne '')
+{
+    if ($upgradestatus -eq 2)
+    {
+        $eventloginfo = $eventloginfo + "DSM Upgrade Status = You've already the latest DSM version running." + -join "`n"
+    }
+    else
+    {
+        # Wenn Upgrade verfügbar und nicht im Eventlog vorhanden Warnung in Eventlog schreiben
+        if (!$eventlogdsmupgradegefunden)
         {
-            if ($upgradestatus -eq 2)
-            {
-                $eventloginfo = $eventloginfo + "DSM Upgrade Status = You've already the latest DSM version running." + -join "`n"
-            }
-            else
+            if ($dsmupgradecheck.Message -notlike "*$ipadress - DSM Upgrade Status*")
             {
                 if ($upgradestatus -eq 1)
                 {
@@ -402,33 +379,46 @@ if (!$eventlogdsmupgradegefunden)
 }
 
 ################## Show Volume OIDs if not set as Argument #####################
-if ($volumeOIDtocheck -eq "" -or $null)
+$oidcheck = get-eventlog -LogName $eventlogname -InstanceId $eventIDwarnung -After (get-date).addminutes(-1440) -Source $eventsource
+$eventlogoidgefunden = $false
+foreach ($message in $oidcheck.Message)
 {
-    $OIDcheckoutput = "Geprueftests NAS System: $ipadress" + -join "`n"
-    $OIDcheckoutput = "$OIDcheckoutput" + "Auflistung aller Volumes und OIDs. OID des zu pruefenden Volume als Argument angeben!" + -join "`n"
-    $OIDcheckoutput = "$OIDcheckoutput" + -join "`n"
-    $nasvolumecheckoid = 1
-
-    while ($nasvolumecheckoid -le 100)
+    if ($eventlogoidgefunden.Message -like "*Geprueftests NAS System: $ipadress*")
     {
-        $nasdiskunit = $snmp.Get(".1.3.6.1.2.1.25.2.3.1.4.$nasvolumecheckoid")
-        $nasdisktotalcheck = $snmp.Get(".1.3.6.1.2.1.25.2.3.1.5.$nasvolumecheckoid")
-        $nasdiskDescrcheck = $snmp.Get(".1.3.6.1.2.1.25.2.3.1.3.$nasvolumecheckoid")
-        $nasdisktotalcheckGB = [Math]::Round($(($nasdisktotalcheck * $nasdiskunit / 1024 / 1024 / 1024)) , 2)
-
-        if ($nasdisktotalcheck -ne '')
-        {
-            $OIDcheckoutput = "$OIDcheckoutput" + "Volume Name: $nasdiskDescrcheck | Total Speicherplatz: $nasdisktotalcheckGB GB | OID: $nasvolumecheckoid" + -join "`n"
-        }
-        
-        $nasdisktotalcheck = ''
-        $nasvolumecheckoid++
+        $eventlogoidgefunden = $true
     }
-    Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$OIDcheckoutput"
+}
+
+if (!$eventlogoidgefunden)
+{
+    if ($volumeOIDtocheck -eq "" -or $null)
+    {
+        $OIDcheckoutput = "Geprueftests NAS System: $ipadress" + -join "`n"
+        $OIDcheckoutput = "$OIDcheckoutput" + "Auflistung aller Volumes und OIDs. OID des zu pruefenden Volume als Argument angeben!" + -join "`n"
+        $OIDcheckoutput = "$OIDcheckoutput" + -join "`n"
+        $nasvolumecheckoid = 1
+
+        while ($nasvolumecheckoid -le 100)
+        {
+            $nasdiskunit = $snmp.Get(".1.3.6.1.2.1.25.2.3.1.4.$nasvolumecheckoid")
+            $nasdisktotalcheck = $snmp.Get(".1.3.6.1.2.1.25.2.3.1.5.$nasvolumecheckoid")
+            $nasdiskDescrcheck = $snmp.Get(".1.3.6.1.2.1.25.2.3.1.3.$nasvolumecheckoid")
+            $nasdisktotalcheckGB = [Math]::Round($(($nasdisktotalcheck * $nasdiskunit / 1024 / 1024 / 1024)) , 2)
+
+            if ($nasdisktotalcheck -ne '')
+            {
+                $OIDcheckoutput = "$OIDcheckoutput" + "Volume Name: $nasdiskDescrcheck | Total Speicherplatz: $nasdisktotalcheckGB GB | OID: $nasvolumecheckoid" + -join "`n"
+            }
+        
+            $nasdisktotalcheck = ''
+            $nasvolumecheckoid++
+        }
+        Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$OIDcheckoutput"
+    }
 }
 
 ################## Write Info with System state to eventlog #####################
-# Prüfen ob NAS Info Meldung in den letzten x Minuten im Eventlog vorhanden ist
+# Prüfen ob NAS Info Meldung in den definierter Zeit im Eventlog vorhanden ist (Zeit in Minuten)
 $eventloginfocheck = get-eventlog -LogName $eventlogname -InstanceId $eventIDinfo -After (get-date).addminutes(-1440) -Source $eventsource
 # Wenn nicht im Eventlog vorhanden prüfung durchführen und Info schreiben
 $eventloginfogefunden = $false

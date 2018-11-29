@@ -17,17 +17,19 @@ $ErrorActionPreference = 'silentlycontinue'
 ################## RMM Environment und Testlab Variablen #####################
 # Eventlog Name welche auf dem RMM Kunden gesetzt wurde
 $eventlogname = $env:mspEventLog
-if ($env:eventlogname -eq $null)
+if ($env:mspEventLog -eq $null)
 {
     # Name des Eventlogs
     $eventlogname = "EventTesting"
+    write-host "EventLogName environment Variable nicht erkannt. Testumgebungs Variable gesetzt. Wert: $eventlogname"
 }
 
 $eventsource = $env:eventsource
 if ($env:eventsource -eq $null)
 {
     # Name der Eventlog Quelle
-    $eventsource = "NAS Monitoring Synology"
+    $eventsource = "NAS Monitoring testing QNAP"
+    write-host "EventSource environment Variable nicht erkannt. Testumgebungs Variable gesetzt. Wert: $eventsource"
 }
 
 $ipadress = $env:IP
@@ -35,6 +37,7 @@ if ($env:IP -eq $null)
 {
     # IP Adresse des Synology NAS angeben mit ""
     $ipadress = "10.1.1.81"
+    write-host "IP Adresse environment Variable nicht erkannt. Testumgebungs Variable gesetzt. Wert: $ipadress"
 }
 
 $minfreeGB = $env:1, $env:2, $env:3, $env:4
@@ -43,6 +46,7 @@ if ($env:1 -eq $null)
     # Schwellenwert für freien Speicherplatz in GB
     # Maximal 4 Volumes mit , trennen (z.B. $minfreeGB = 500,200)
     $minfreeGB = 500
+    write-host "Speicherplatz environment Variable nicht erkannt. Testumgebungs Variable gesetzt. Wert: $minfreeGB"
 }
 
 ################## Globale Variablen #####################
@@ -69,14 +73,14 @@ $eventloginfo = $eventloginfo + "Laufzeit in Tagen: $nasuptime" + -join "`n"
 $eventloginfo = $eventloginfo + -join "`n"
 
 ################## Erstellung Eventlog und Event Source #####################
-# Wenn das Eventlog nicht vorhanden ist, erstelle dieses
+# Wenn Eventlog nicht vorhanden ist, erstellen
 $eventlognamecheck = Get-EventLog -list | Where-Object {$_.logdisplayname -eq $eventlogname}
 if (! $eventlognamecheck)
 {
     New-EventLog -LogName $eventlogname -source $eventsource 
 }
 
-# Wenn die Eventsource nicht vorhanden ist, erstelle diese
+# Wenn Eventsource nicht vorhanden, erstellen
 $eventsourcecheck = [System.Diagnostics.EventLog]::SourceExists($eventsource) -eq $true
 if (! $eventsourcecheck)
 {
@@ -169,7 +173,7 @@ while ($hddstatuscount -le $hdnumber)
 }
 
 ################## Write Info with System state to eventlog #####################
-# Prüfen ob NAS Info Meldung in den letzten x Minuten im Eventlog vorhanden ist
+# Prüfen ob NAS Info Meldung in den definierter Zeit im Eventlog vorhanden ist (Zeit in Minuten)
 $eventloginfocheck = get-eventlog -LogName $eventlogname -InstanceId $eventIDinfo -After (get-date).addminutes(-1440) -Source $eventsource
 # Wenn nicht im Eventlog vorhanden prüfung durchführen und Info schreiben
 $eventloginfogefunden = $false
