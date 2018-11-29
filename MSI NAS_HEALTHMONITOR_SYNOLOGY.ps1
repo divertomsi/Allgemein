@@ -1,12 +1,30 @@
+<#PSScriptInfo
+
+.VERSION 0.1.000
+
+.AUTHOR m.sigg@diverto.ch , t.leuenberger@diverto.ch
+
+.COMPANYNAME diverto gmbh
+
+.RELEASENOTES
+
+
+#>
+
+
 $ErrorActionPreference = 'silentlycontinue'
 
 ################## RMM Environment und Testlab Variablen #####################
-$eventlogname = $env:eventlogname
-if ($env:eventlogname -eq $null)
+# Eventlog Name welche auf dem RMM Kunden gesetzt wurde
+$eventlogname = "EventTesting"
+<#
+$eventlogname = $env:mspEventLog
+if ($env:mspEventLog -eq $null)
 {
     # Name des Eventlogs
     $eventlogname = "EventTesting"
 }
+#>
 
 $eventsource = $env:eventsource
 if ($env:eventsource -eq $null)
@@ -68,7 +86,7 @@ if (! $eventlognamecheck)
 $eventsourcecheck = [System.Diagnostics.EventLog]::SourceExists($eventsource) -eq $true
 if (! $eventsourcecheck)
 {
-    new-eventlog -source $eventsource -logname $eventlogname
+    New-Eventlog -source $eventsource -logname $eventlogname
 }
 
 ################## Check free disk space and convert TB to GB (String to double) if check returns TB value #####################
@@ -327,43 +345,58 @@ while ($raidstatus -ne '')
 
 
 ################## Check if upgrade is available #####################
-$upgradestatus = ''
-$upgradestatus = $snmp.Get(".1.3.6.1.4.1.6574.1.5.4.0")
-
-if ($upgradestatus -ne '')
+# Prüfen ob Meldung zu DSM Upgrade in den letzten x Minuten im Eventlog vorhanden ist
+$dsmupgradecheck = get-eventlog -LogName $eventlogname -InstanceId $eventIDwarnung -After (get-date).addminutes(-10080) -Source $eventsource
+# Wenn nicht im Eventlog vorhanden prüfung durchführen und Info schreiben
+$eventlogdsmupgradegefunden = $false
+foreach ($message in $dsmupgradecheck.Message)
 {
-    if ($upgradestatus -eq 2)
+    if ($dsmupgradecheck.Message -like "*$ipadress - DSM Upgrade Status*")
     {
-        $eventloginfo = $eventloginfo + "DSM Upgrade Status = You've already the latest DSM version running." + -join "`n"
+        $eventlogdsmupgradegefunden = $true
     }
-    else
+}
+if (!$eventlogdsmupgradegefunden)
+{
+    if ($dsmupgradecheck.Message -notlike "*$ipadress - DSM Upgrade Status*")
     {
-        if ($upgradestatus -eq 1)
+        $upgradestatus = ''
+        $upgradestatus = $snmp.Get(".1.3.6.1.4.1.6574.1.5.4.0")
+
+        if ($upgradestatus -ne '')
         {
-            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Available: There is a new version ready for download."
-            $errorcount++
-        }
-        elseif ($upgradestatus -eq 3)
-        {
-            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Connecting: Checking for the latest DSM."
-            $errorcount++
-        }
-        elseif ($upgradestatus -eq 4)
-        {
-            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Disconnected: Failed to connect to server."
-            $errorcount++
-        }
-        elseif ($upgradestatus -eq 5)
-        {
-            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Other: If DSM is upgrading or downloading."
-            $errorcount++
-        }
-        else
-        {
-            Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = $upgradestatus"
-            $errorcount++
-        }
-        else {
+            if ($upgradestatus -eq 2)
+            {
+                $eventloginfo = $eventloginfo + "DSM Upgrade Status = You've already the latest DSM version running." + -join "`n"
+            }
+            else
+            {
+                if ($upgradestatus -eq 1)
+                {
+                    Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Available: There is a new version ready for download."
+                    $errorcount++
+                }
+                elseif ($upgradestatus -eq 3)
+                {
+                    Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Connecting: Checking for the latest DSM."
+                    $errorcount++
+                }
+                elseif ($upgradestatus -eq 4)
+                {
+                    Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Disconnected: Failed to connect to server."
+                    $errorcount++
+                }
+                elseif ($upgradestatus -eq 5)
+                {
+                    Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = Other: If DSM is upgrading or downloading."
+                    $errorcount++
+                }
+                else
+                {
+                    Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$ipadress - DSM Upgrade Status = $upgradestatus"
+                    $errorcount++
+                }
+            }
         }
     }
 }
@@ -395,6 +428,19 @@ if ($volumeOIDtocheck -eq "" -or $null)
 }
 
 ################## Write Info with System state to eventlog #####################
-$eventloginfo = "$eventloginfo" + -join "`n" + "Anzahl gefundene Fehler: $errorcount" + -join "`n"
-Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Information -EventID $eventIDinfo -Message "$eventloginfo"
-
+# Prüfen ob NAS Info Meldung in den letzten x Minuten im Eventlog vorhanden ist
+$eventloginfocheck = get-eventlog -LogName $eventlogname -InstanceId $eventIDinfo -After (get-date).addminutes(-1440) -Source $eventsource
+# Wenn nicht im Eventlog vorhanden prüfung durchführen und Info schreiben
+$eventloginfogefunden = $false
+foreach ($message in $eventloginfocheck.Message)
+{
+    if ($eventloginfocheck.Message -like "*NAS IP: $ipadress*")
+    {
+        $eventloginfogefunden = $true
+    }
+}
+if (!$eventloginfogefunden)
+{
+    $eventloginfo = "$eventloginfo" + -join "`n" + "Anzahl gefundene Fehler: $errorcount" + -join "`n"
+    Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Information -EventID $eventIDinfo -Message "$eventloginfo"
+}

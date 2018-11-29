@@ -1,7 +1,22 @@
+<#PSScriptInfo
+
+.VERSION 0.1.000
+
+.AUTHOR m.sigg@diverto.ch , t.leuenberger@diverto.ch
+
+.COMPANYNAME diverto gmbh
+
+.RELEASENOTES
+
+
+#>
+
+
 $ErrorActionPreference = 'silentlycontinue'
 
 ################## RMM Environment und Testlab Variablen #####################
-$eventlogname = $env:eventlogname
+# Eventlog Name welche auf dem RMM Kunden gesetzt wurde
+$eventlogname = $env:mspEventLog
 if ($env:eventlogname -eq $null)
 {
     # Name des Eventlogs
@@ -147,13 +162,26 @@ while ($hddstatuscount -le $hdnumber)
     }
     else
     {
-        Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$nashostname : - HDD$hddstatuscount Status = $nasHDDStatus - HDD Modell: $hddmodel. Das NAS läuft seit "$nasuptime "Tag(en)"
+        Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$nashostname : - HDD$hddstatuscount Status = $nasHDDStatus - HDD Modell: $hddmodel."
         $errorcount++
     }
     $hddstatuscount++
 }
 
 ################## Write Info with System state to eventlog #####################
-$eventloginfo = "$eventloginfo" + -join "`n" + "Anzahl gefundene Fehler: $errorcount" + -join "`n"
-Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Information -EventID $eventIDinfo -Message "$eventloginfo"
-
+# Prüfen ob NAS Info Meldung in den letzten x Minuten im Eventlog vorhanden ist
+$eventloginfocheck = get-eventlog -LogName $eventlogname -InstanceId $eventIDinfo -After (get-date).addminutes(-1440) -Source $eventsource
+# Wenn nicht im Eventlog vorhanden prüfung durchführen und Info schreiben
+$eventloginfogefunden = $false
+foreach ($message in $eventloginfocheck.Message)
+{
+    if ($eventloginfocheck.Message -like "*NAS IP: $ipadress*")
+    {
+        $eventloginfogefunden = $true
+    }
+}
+if (!$eventloginfogefunden)
+{
+    $eventloginfo = "$eventloginfo" + -join "`n" + "Anzahl gefundene Fehler: $errorcount" + -join "`n"
+    Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Information -EventID $eventIDinfo -Message "$eventloginfo"
+}
