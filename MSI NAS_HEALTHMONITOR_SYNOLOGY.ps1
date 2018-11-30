@@ -1,13 +1,13 @@
 <#PSScriptInfo
 
-.VERSION 0.1.000
+.VERSION 0.1.001
 
 .AUTHOR m.sigg@diverto.ch , t.leuenberger@diverto.ch
 
 .COMPANYNAME diverto gmbh
 
 .RELEASENOTES
-
+0.1.001 - Prüfung Show Volume OIDs fehlerhafte foreach Schleife behoben
 
 #>
 
@@ -383,7 +383,7 @@ $oidcheck = get-eventlog -LogName $eventlogname -InstanceId $eventIDwarnung -Aft
 $eventlogoidgefunden = $false
 foreach ($message in $oidcheck.Message)
 {
-    if ($eventlogoidgefunden.Message -like "*Geprueftests NAS System: $ipadress*")
+    if ($oidcheck.Message -like "*Geprueftests NAS System: $ipadress*")
     {
         $eventlogoidgefunden = $true
     }
