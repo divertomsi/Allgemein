@@ -35,7 +35,7 @@ if ($env:eventsource -eq $null)
 $ipadress = $env:IP
 if ($env:IP -eq $null)
 {
-    # IP Adresse des Synology NAS angeben mit ""
+    # IP Adresse des NAS angeben mit ""
     $ipadress = "10.1.1.80"
     write-host "IP Adresse environment Variable nicht erkannt. Testumgebungs Variable gesetzt. Wert: $ipadress"
 }
