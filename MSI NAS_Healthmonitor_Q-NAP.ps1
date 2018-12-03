@@ -1,12 +1,13 @@
 <#PSScriptInfo
 
-.VERSION 0.1.000
+.VERSION 0.1.001
 
 .AUTHOR m.sigg@diverto.ch , t.leuenberger@diverto.ch
 
 .COMPANYNAME diverto gmbh
 
 .RELEASENOTES
+0.1.001 - Eventlog Prüfung foreach Schleife [$i] in Abfrage ergänzt
 
 
 #>
@@ -176,13 +177,15 @@ while ($hddstatuscount -le $hdnumber)
 # Prüfen ob NAS Info Meldung in den definierter Zeit im Eventlog vorhanden ist (Zeit in Minuten)
 $eventloginfocheck = get-eventlog -LogName $eventlogname -InstanceId $eventIDinfo -After (get-date).addminutes(-1440) -Source $eventsource
 # Wenn nicht im Eventlog vorhanden prüfung durchführen und Info schreiben
+$i = 0
 $eventloginfogefunden = $false
 foreach ($message in $eventloginfocheck.Message)
 {
-    if ($eventloginfocheck.Message -like "*NAS IP: $ipadress*")
+    if ($eventloginfocheck[$i].Message -like "*NAS IP: $ipadress*")
     {
         $eventloginfogefunden = $true
     }
+    $i++
 }
 if (!$eventloginfogefunden)
 {

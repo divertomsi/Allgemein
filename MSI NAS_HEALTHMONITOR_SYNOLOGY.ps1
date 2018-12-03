@@ -1,6 +1,6 @@
 <#PSScriptInfo
 
-.VERSION 0.1.001
+.VERSION 0.1.002
 
 .AUTHOR m.sigg@diverto.ch , t.leuenberger@diverto.ch
 
@@ -8,6 +8,7 @@
 
 .RELEASENOTES
 0.1.001 - Prüfung Show Volume OIDs fehlerhafte foreach Schleife behoben
+0.1.002 - Eventlog Prüfung foreach Schleifen [$i] in Abfrage ergänzt
 
 #>
 
@@ -324,13 +325,15 @@ while ($raidstatus -ne '')
 ################## Check if upgrade is available #####################
 # Prüfen ob Meldung zu DSM Upgrade in den definierter Zeit im Eventlog vorhanden ist (Zeit in Minuten)
 $dsmupgradecheck = get-eventlog -LogName $eventlogname -InstanceId $eventIDwarnung -After (get-date).addminutes(-10080) -Source $eventsource
+$i = 0
 $eventlogdsmupgradegefunden = $false
 foreach ($message in $dsmupgradecheck.Message)
 {
-    if ($dsmupgradecheck.Message -like "*$ipadress - DSM Upgrade Status*")
+    if ($dsmupgradecheck[$i].Message -like "*$ipadress - DSM Upgrade Status*")
     {
         $eventlogdsmupgradegefunden = $true
     }
+    $i++
 }
 
 $upgradestatus = ''
@@ -380,13 +383,15 @@ if ($upgradestatus -ne '')
 
 ################## Show Volume OIDs if not set as Argument #####################
 $oidcheck = get-eventlog -LogName $eventlogname -InstanceId $eventIDwarnung -After (get-date).addminutes(-1440) -Source $eventsource
+$i = 0
 $eventlogoidgefunden = $false
 foreach ($message in $oidcheck.Message)
 {
-    if ($oidcheck.Message -like "*Geprueftests NAS System: $ipadress*")
+    if ($oidcheck[$i].Message -like "*Geprueftests NAS System: $ipadress*")
     {
         $eventlogoidgefunden = $true
     }
+    $i++
 }
 
 if (!$eventlogoidgefunden)
@@ -421,13 +426,15 @@ if (!$eventlogoidgefunden)
 # Prüfen ob NAS Info Meldung in den definierter Zeit im Eventlog vorhanden ist (Zeit in Minuten)
 $eventloginfocheck = get-eventlog -LogName $eventlogname -InstanceId $eventIDinfo -After (get-date).addminutes(-1440) -Source $eventsource
 # Wenn nicht im Eventlog vorhanden prüfung durchführen und Info schreiben
+$i = 0
 $eventloginfogefunden = $false
 foreach ($message in $eventloginfocheck.Message)
 {
-    if ($eventloginfocheck.Message -like "*NAS IP: $ipadress*")
+    if ($eventloginfocheck[$i].Message -like "*NAS IP: $ipadress*")
     {
         $eventloginfogefunden = $true
     }
+    $i++
 }
 if (!$eventloginfogefunden)
 {
