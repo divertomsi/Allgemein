@@ -8,10 +8,11 @@
 
 .RELEASENOTES
 0.1.001 - Eventlog Prüfung foreach Schleife [$i] in Abfrage ergänzt
+0.1.002 - Ergänzung Env Variable für Schreibinterval der Zusammenfassung als Info in das Eventlog 
 
 
 #>
-$skriptversion = "0.1.001"
+$skriptversion = "0.1.002"
 
 $ErrorActionPreference = 'silentlycontinue'
 
@@ -48,6 +49,14 @@ if ($env:1 -eq $null)
     # Maximal 4 Volumes mit , trennen (z.B. $minfreeGB = 500,200)
     $minfreeGB = 500
     write-host "Speicherplatz environment Variable nicht erkannt. Testumgebungs Variable gesetzt. Wert: $minfreeGB"
+}
+
+$writeinfominutes = $env:writeinfominutes
+if ($env:writeinfominutes -eq $null)
+{
+    # Schreibe eine Zusammenfassung also Information in das Eventlog alle x Minuten
+    $writeinfominutes = 1440 # Default 1440 Minuten = 24h
+    write-host "Infor schreiben environment Variable nicht erkannt. Variable für Testumgebung wurde gesetzt. Wert: $writeinfominutes"
 }
 
 ################## Globale Variablen #####################
@@ -175,7 +184,7 @@ while ($hddstatuscount -le $hdnumber)
 
 ################## Write Info with System state to eventlog #####################
 # Prüfen ob NAS Info Meldung in den definierter Zeit im Eventlog vorhanden ist (Zeit in Minuten)
-$eventloginfocheck = get-eventlog -LogName $eventlogname -InstanceId $eventIDinfo -After (get-date).addminutes(-1440) -Source $eventsource
+$eventloginfocheck = get-eventlog -LogName $eventlogname -InstanceId $eventIDinfo -After (get-date).addminutes(-$writeinfominutes) -Source $eventsource
 # Wenn nicht im Eventlog vorhanden prüfung durchführen und Info schreiben
 $i = 0
 $eventloginfogefunden = $false
