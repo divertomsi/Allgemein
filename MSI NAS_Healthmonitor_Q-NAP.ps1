@@ -11,7 +11,7 @@
 
 
 #>
-
+$skriptversion = "0.1.001"
 
 $ErrorActionPreference = 'silentlycontinue'
 
@@ -190,5 +190,6 @@ foreach ($message in $eventloginfocheck.Message)
 if (!$eventloginfogefunden)
 {
     $eventloginfo = "$eventloginfo" + -join "`n" + "Anzahl gefundene Fehler: $errorcount" + -join "`n"
+    $eventloginfo = "$eventloginfo" + -join "`n" + "Skript Version: $skriptversion" + -join "`n"
     Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Information -EventID $eventIDinfo -Message "$eventloginfo"
 }

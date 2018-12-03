@@ -11,7 +11,7 @@
 0.1.002 - Eventlog Prüfung foreach Schleifen [$i] in Abfrage ergänzt
 
 #>
-
+$skriptversion = "0.1.002"
 
 $ErrorActionPreference = 'silentlycontinue'
 
@@ -46,7 +46,7 @@ if ($env:OID -eq $null)
 {
     # Für Auflistung aller Volume OIDs auf "" setzten ($volumeOIDtocheck = "")
     # Nach der ersten Prüfung OID des zu prüfenden Volumes angeben
-    $volumeOIDtocheck = ""
+    $volumeOIDtocheck = "51"
     write-host "OID environment Variable nicht erkannt. Testumgebungs Variable gesetzt. Wert: $volumeOIDtocheck"
 }
 
@@ -439,5 +439,6 @@ foreach ($message in $eventloginfocheck.Message)
 if (!$eventloginfogefunden)
 {
     $eventloginfo = "$eventloginfo" + -join "`n" + "Anzahl gefundene Fehler: $errorcount" + -join "`n"
+    $eventloginfo = "$eventloginfo" + -join "`n" + "Skript Version: $skriptversion" + -join "`n"
     Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Information -EventID $eventIDinfo -Message "$eventloginfo"
 }
