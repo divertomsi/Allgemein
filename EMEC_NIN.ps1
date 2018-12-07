@@ -1,31 +1,7 @@
-[string]$HTML = (New-Object System.Net.WebClient).DownloadString("http://10.33.22.10/")
-
-$SearchTerm = '*Directory: *'
-
-If ($HTML -like "$SearchTerm" )
-{
-    Write-EventLog -LogName divertoEvents -Source divServer -EntryType Warning -EventID 9 -Message "NIN braucht automatische Wartung"
-    exit 1
-}
-Else
-{
-    Write-EventLog -LogName divertoEvents -Source divServer -EntryType Information -EventID 9 -Message "NIN braucht keine automatische Wartung"
-    exit 0
-}
-
-<#
-@echo off
-net stop NinWindowsService_id
-rmdir /s /q "C:\Windows\Temp\nin-jetty-runtime"
-net start NinWindowsService_id
-#>
-
-
-
 #
 # Variablen:
 # --------------------------------------------------------------------------------------------------------------------
-$counterrormax = 2 #Anzahl Fehler bis E-Mail ausgelöst wird
+$counterrormax = 0 #Anzahl Fehler bis E-Mail ausgelöst wird
 
 # Webseite prüfen
 [string]$HTML = (New-Object System.Net.WebClient).DownloadString("http://10.33.22.10/")
@@ -65,11 +41,13 @@ if ($min.TimeOfDay -le $now.TimeOfDay -and $max.TimeOfDay -ge $now.TimeOfDay)
 If ($HTML -like "$SearchTerm" -or $HTML -eq $null)
 {
     Write-Output "$($datetime) NIN Directory Error" >> $log
+    <#
     net stop NinWindowsService_id
     Start-Sleep -s 15
     Remove-Item "C:\Windows\Temp\nin-jetty-runtime" -recurse
     Start-Sleep -s 15
     net start NinWindowsService_id
+    #>
     $count++
     $count > $countdatei
     
@@ -107,6 +85,15 @@ Else
     Write-Output "$($datetime) Kein NIN Fehler" >> $log
 }
 
-
+# Log grösse prüfen und wenn grösse erreicht bereinigen
+if (Test-Path $log)
+{
+    if ((Get-Item $log).length -gt 50000kb)
+    {
+        Remove-Item $log".old" -recurse
+        Rename-Item $log $logName".old"
+        New-Item -Path $logPath -Name $logName -ItemType file
+    }
+}
 
 
