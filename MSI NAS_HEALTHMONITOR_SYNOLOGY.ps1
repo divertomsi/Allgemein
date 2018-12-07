@@ -1,7 +1,9 @@
 <#PSScriptInfo
 
-.VERSION 0.1.002
-
+.VERSION 0.1.003
+#>
+$skriptversion = "0.1.003"
+<#
 .AUTHOR m.sigg@diverto.ch , t.leuenberger@diverto.ch
 
 .COMPANYNAME diverto gmbh
@@ -12,7 +14,6 @@
 0.1.003 - Ergänzung Env Variable für Schreibinterval der Zusammenfassung als Info in das Eventlog 
 
 #>
-$skriptversion = "0.1.003"
 
 $ErrorActionPreference = 'silentlycontinue'
 
@@ -47,7 +48,7 @@ if ($env:OID -eq $null)
 {
     # Für Auflistung aller Volume OIDs auf "" setzten ($volumeOIDtocheck = "")
     # Nach der ersten Prüfung OID des zu prüfenden Volumes angeben
-    $volumeOIDtocheck = "51"
+    $volumeOIDtocheck = ""
     write-host "OID environment Variable nicht erkannt. Testumgebungs Variable gesetzt. Wert: $volumeOIDtocheck"
 }
 

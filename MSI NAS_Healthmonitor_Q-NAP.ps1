@@ -1,7 +1,9 @@
 <#PSScriptInfo
 
-.VERSION 0.1.001
-
+.VERSION 0.1.003
+#>
+$skriptversion = "0.1.003"
+<#
 .AUTHOR m.sigg@diverto.ch , t.leuenberger@diverto.ch
 
 .COMPANYNAME diverto gmbh
@@ -9,10 +11,10 @@
 .RELEASENOTES
 0.1.001 - Eventlog Prüfung foreach Schleife [$i] in Abfrage ergänzt
 0.1.002 - Ergänzung Env Variable für Schreibinterval der Zusammenfassung als Info in das Eventlog 
+0.1.003 - Ergänzung elseif für HDD Stats prüfung 
 
 
 #>
-$skriptversion = "0.1.002"
 
 $ErrorActionPreference = 'silentlycontinue'
 
@@ -30,7 +32,7 @@ $eventsource = $env:eventsource
 if ($env:eventsource -eq $null)
 {
     # Name der Eventlog Quelle
-    $eventsource = "NAS Monitoring testing QNAP"
+    $eventsource = "NAS Monitoring testing Synology"
     write-host "EventSource environment Variable nicht erkannt. Testumgebungs Variable gesetzt. Wert: $eventsource"
 }
 
@@ -173,6 +175,11 @@ while ($hddstatuscount -le $hdnumber)
     if ($nasHDDStatus -eq "GOOD")
     {
         $eventloginfo = $eventloginfo + "OK - HDD$hddstatuscount Status = OK" + -join "`n"
+    }
+    elseif ($nasHDDStatus -eq $null -or "")
+    {
+        Write-EventLog -LogName $eventlogname -Source $eventsource -EntryType Warning -EventID $eventIDwarnung -Message "$nashostname : - HDD Status = `"$nasHDDStatus`" kann nicht gelesen werden."
+        $errorcount++
     }
     else
     {
