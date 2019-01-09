@@ -2,7 +2,7 @@
 
 .VERSION 0.1.003
 #>
-$skriptversion = "0.1.003"
+$skriptversion = "0.1.004"
 <#
 .AUTHOR m.sigg@diverto.ch , t.leuenberger@diverto.ch
 
@@ -12,6 +12,7 @@ $skriptversion = "0.1.003"
 0.1.001 - Prüfung Show Volume OIDs fehlerhafte foreach Schleife behoben
 0.1.002 - Eventlog Prüfung foreach Schleifen [$i] in Abfrage ergänzt
 0.1.003 - Ergänzung Env Variable für Schreibinterval der Zusammenfassung als Info in das Eventlog 
+0.1.004 - Ergänzung if Prüfung von Show Volume OIDs if not set as Argument. Ergänzung: -or $nasdisktotalTB -eq 0
 
 #>
 
@@ -113,7 +114,7 @@ $nasdisktotalTB = [Math]::Round(($nasdisktotalGB / 1024) , 2)
 $nasdiskfreeGB = [Math]::Round($((($nasdisktotal - $nasdiskused) * $nasdiskunit / 1024 / 1024 / 1024)) , 2)
 $nasdiskfreeTB = [Math]::Round(($nasdiskfreeGB / 1024) , 2)
 
-if ($volumeOIDtocheck -ne "" -or $null)
+if ($volumeOIDtocheck -ne "" -or $volumeOIDtocheck -ne $null)
 {
     if ($nasdiskfreeGB -ge $minfreeGB)
     {
@@ -406,7 +407,7 @@ foreach ($message in $oidcheck.Message)
 
 if (!$eventlogoidgefunden)
 {
-    if ($volumeOIDtocheck -eq "" -or $null)
+    if ($volumeOIDtocheck -eq "" -or $volumeOIDtocheck -eq $null -or $nasdisktotalTB -eq 0)
     {
         $OIDcheckoutput = "Geprueftests NAS System: $ipadress" + -join "`n"
         $OIDcheckoutput = "$OIDcheckoutput" + "Auflistung aller Volumes und OIDs. OID des zu pruefenden Volume als Argument angeben!" + -join "`n"
